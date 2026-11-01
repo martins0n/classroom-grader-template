@@ -1,0 +1,52 @@
+name: Prepare notebook sandbox
+description: >
+  Builds or restores the dependencies mounted read-only into the sandbox. The cache is
+  saved here, before any student code exists on this machine, and is never saved afterwards.
+inputs:
+  assignment:
+    description: Assignment name, used to pick test_cases/<assignment>/requirements.txt
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Locate dependencies
+      id: cfg
+      shell: bash
+      run: |
+        echo "image=$(cat sandbox/image.txt)" >> "$GITHUB_OUTPUT"
+        echo "SANDBOX_DEPS_DIR=$RUNNER_TEMP/sandbox-deps" >> "$GITHUB_ENV"
+        mkdir -p "$RUNNER_TEMP/sandbox-deps"
+
+    - name: Restore dependencies
+      id: cache
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ${{ runner.temp }}/sandbox-deps
+        key: sandbox-deps-${{ hashFiles('sandbox/image.txt', 'sandbox/requirements.txt', format('test_cases/{0}/requirements.txt', inputs.assignment)) }}
+
+    - name: Pull sandbox image
+      shell: bash
+      env:
+        IMAGE: ${{ steps.cfg.outputs.image }}
+      run: docker pull --quiet "$IMAGE"
+
+    - name: Build dependencies
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      env:
+        IMAGE: ${{ steps.cfg.outputs.image }}
+        ASSIGNMENT: ${{ inputs.assignment }}
+      run: bash "$GITHUB_ACTION_PATH/build_deps.sh"
+
+    - name: Save dependencies
+      if: steps.cache.outputs.cache-hit != 'true'
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ${{ runner.temp }}/sandbox-deps
+        key: ${{ steps.cache.outputs.cache-primary-key }}
+
+    - name: Make dependencies readable and block cloud metadata endpoints
+      shell: bash
+      run: |
+        chmod -R a+rX "$RUNNER_TEMP/sandbox-deps"
+        sudo iptables -I DOCKER-USER -d 169.254.169.254,168.63.129.16 -j REJECT

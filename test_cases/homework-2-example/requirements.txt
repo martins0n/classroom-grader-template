@@ -1,0 +1,11 @@
+# Assignment-specific requirements for homework-2-example
+# These will be installed in addition to the base requirements
+
+# Example: If this assignment requires specific versions of libraries
+# numpy==1.24.0
+# pandas==2.0.0
+# scikit-learn==1.3.0
+
+# Or specific packages not in base requirements
+# matplotlib>=3.7.0
+# seaborn>=0.12.0

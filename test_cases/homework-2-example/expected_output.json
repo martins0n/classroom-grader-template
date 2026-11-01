@@ -1,0 +1,37 @@
+{
+  "test_cases": [
+    {
+      "name": "Basic arithmetic operations",
+      "points": 10,
+      "expected": {
+        "sum": 15,
+        "product": 50
+      }
+    },
+    {
+      "name": "String operations",
+      "points": 10,
+      "expected": {
+        "result": "Hello, World!",
+        "length": 13
+      }
+    },
+    {
+      "name": "Numerical comparison with tolerance",
+      "points": 15,
+      "tolerance": 0.01,
+      "expected": {
+        "pi": 3.14159,
+        "e": 2.71828
+      }
+    },
+    {
+      "name": "List operations",
+      "points": 15,
+      "expected": {
+        "sorted": [1, 2, 3, 4, 5],
+        "reversed": [5, 4, 3, 2, 1]
+      }
+    }
+  ]
+}

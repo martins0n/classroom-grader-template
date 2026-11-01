@@ -1,0 +1,59 @@
+name: Generate Marks CSV
+
+on:
+  schedule:
+    - cron: '0 8 * * 0'
+  workflow_dispatch:
+    inputs:
+      course_id:
+        description: 'Course ID for student names (defaults to the first configured course)'
+        required: false
+        type: string
+
+permissions: {}
+
+jobs:
+  generate:
+    if: github.event_name != 'schedule' || vars.GRADER_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Check out code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: python -m pip install --quiet --disable-pip-version-check -r requirements.txt
+
+      - name: Write Google token
+        env:
+          GOOGLE_TOKEN: ${{ secrets.GOOGLE_TOKEN }}
+        run: |
+          umask 077
+          if [ -n "$GOOGLE_TOKEN" ]; then printf '%s' "$GOOGLE_TOKEN" > token.json; fi
+
+      - name: Generate marks CSV
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          COURSE_ID: ${{ inputs.course_id }}
+          COURSE_IDS: ${{ secrets.COURSE_IDS }}
+        run: |
+          course="${COURSE_ID:-${COURSE_IDS%%,*}}"
+          python scripts/generate_marks_csv.py --repo "$REPO" --output reports/marks.csv ${course:+--course-id "$course"}
+
+      - name: Upload marks CSV
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: marks-csv-${{ github.run_number }}
+          path: reports/marks.csv
+          if-no-files-found: warn

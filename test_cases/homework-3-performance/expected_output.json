@@ -1,0 +1,44 @@
+{
+  "test_cases": [
+    {
+      "name": "Algorithm execution time should be under 5 seconds",
+      "points": 20,
+      "expected": 5.0,
+      "compare": "<"
+    },
+    {
+      "name": "Sorting accuracy must be at least 95%",
+      "points": 25,
+      "expected": 0.95,
+      "compare": ">="
+    },
+    {
+      "name": "Error rate should be below 1%",
+      "points": 15,
+      "expected": 0.01,
+      "compare": "<"
+    },
+    {
+      "name": "Performance metrics with mixed comparisons",
+      "points": 30,
+      "expected": {
+        "execution_time": 10.0,
+        "memory_usage": 100,
+        "accuracy": 0.9
+      },
+      "compare_fields": {
+        "execution_time": "<",
+        "memory_usage": "<=",
+        "accuracy": ">="
+      }
+    },
+    {
+      "name": "Exact result verification",
+      "points": 10,
+      "expected": {
+        "status": "success",
+        "items_processed": 100
+      }
+    }
+  ]
+}

@@ -1,0 +1,3 @@
+# Installed on the runner host of the grading job. Keep this list as short as possible:
+# everything else the notebook needs lives inside the sandbox (see sandbox/requirements.txt).
+cryptography==44.0.3

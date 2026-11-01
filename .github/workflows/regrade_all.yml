@@ -1,0 +1,40 @@
+name: Regrade All
+
+# Run by hand after changing test cases. Open pull requests are not regraded automatically.
+on:
+  workflow_dispatch:
+    inputs:
+      assignment:
+        description: 'Only this assignment, e.g. homework-1 (optional)'
+        required: false
+        type: string
+
+permissions: {}
+
+jobs:
+  regrade:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      actions: write
+      pull-requests: read
+    steps:
+      - name: Start grading for open student pull requests
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          ASSIGNMENT: ${{ inputs.assignment }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          gh pr list --repo "$REPO" --state open --limit 1000 \
+            --json headRefName,isCrossRepository \
+            --jq '.[] | select(.isCrossRepository | not) | .headRefName | select(startswith("student-"))' > branches.txt
+          started=0
+          while IFS= read -r branch; do
+            if [ -n "$ASSIGNMENT" ] && [ "${branch##*/assignment-}" != "$ASSIGNMENT" ]; then
+              continue
+            fi
+            gh workflow run grade_submission.yml --repo "$REPO" --ref "$DEFAULT_BRANCH" -f branch="$branch"
+            started=$((started + 1))
+          done < branches.txt
+          echo "Started $started grading run(s)"

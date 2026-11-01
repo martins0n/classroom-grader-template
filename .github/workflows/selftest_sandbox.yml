@@ -1,0 +1,56 @@
+name: 'Selftest: sandbox'
+
+# Attacks the sandbox on a real runner. Needs no secrets, so it also passes in a brand new
+# copy of the template. Keep this green: it is what proves student code cannot reach the key.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'sandbox/**'
+      - 'scripts/**'
+      - 'tests/**'
+      - '.github/**'
+      - 'requirements*.txt'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  selftest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - name: Check out code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: python -m pip install --quiet --disable-pip-version-check -r requirements.txt -r requirements-dev.txt
+
+      - name: Prepare sandbox
+        uses: ./.github/actions/prepare-sandbox
+        with:
+          assignment: homework-1-example
+
+      - name: Plant canaries where a real key could end up on the host
+        run: |
+          canary="SELFTEST-CANARY-$(openssl rand -hex 16)"
+          echo "SELFTEST_CANARY=$canary" >> "$GITHUB_ENV"
+          printf '%s' "$canary" > "$GITHUB_WORKSPACE/.selftest-canary"
+          printf '%s' "$canary" > "$HOME/.selftest-canary"
+          printf '%s' "$canary" > "$RUNNER_TEMP/.selftest-canary"
+          git config selftest.canary "$canary"
+
+      - name: Run tests, including the attacks
+        env:
+          REQUIRE_SANDBOX_TESTS: '1'
+        run: python -m pytest tests -v

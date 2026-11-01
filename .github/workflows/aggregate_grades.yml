@@ -1,0 +1,65 @@
+name: Aggregate Grades
+
+on:
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      assignment_id:
+        description: 'Assignment ID (leave empty for all assignments)'
+        required: false
+        type: string
+
+permissions: {}
+
+jobs:
+  aggregate:
+    if: github.event_name != 'schedule' || vars.GRADER_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Check out code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Only workflow_dispatch runs of the grading workflow count. Somebody opening a pull
+      # request from a fork can get a workflow of their own to run here and upload an artifact
+      # with any name, but they cannot produce a workflow_dispatch run: that needs write access.
+      - name: Download newest report per student and assignment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          mkdir -p artifacts
+          gh api --paginate "repos/$REPO/actions/workflows/grade_submission.yml/runs?event=workflow_dispatch&status=completed&per_page=100" \
+            --jq '.workflow_runs[].id' > runs.txt
+          while IFS= read -r run; do
+            gh api "repos/$REPO/actions/runs/$run/artifacts" \
+              --jq '.artifacts[] | select(.expired | not) | .name | select(startswith("grading-report-"))' |
+            while IFS= read -r name; do
+              if [ ! -d "artifacts/$name" ]; then
+                gh run download "$run" --repo "$REPO" --name "$name" --dir "artifacts/$name" ||
+                  echo "Could not download $name from run $run"
+              fi
+            done
+          done < runs.txt
+
+      - name: Aggregate into CSV
+        env:
+          ASSIGNMENT_ID: ${{ inputs.assignment_id }}
+        run: >
+          python3 scripts/aggregate_grades.py
+          --artifacts-dir artifacts
+          --output-dir reports/aggregated
+          ${ASSIGNMENT_ID:+--assignment-id "$ASSIGNMENT_ID"}
+
+      - name: Upload aggregated CSVs
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: aggregated-grades-${{ github.run_number }}
+          path: reports/aggregated/*.csv
+          if-no-files-found: warn

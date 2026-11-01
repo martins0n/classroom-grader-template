@@ -1,0 +1,5 @@
+# Installed into the virtualenv mounted read-only into the sandbox.
+# Assignment-specific packages go to test_cases/<assignment>/requirements.txt.
+nbformat==5.9.2
+nbconvert==7.14.2
+ipykernel==6.29.4
