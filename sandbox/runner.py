@@ -46,12 +46,13 @@ def execute(path):
         return None
 
     def running_cell():
-        """The last cell that started: where a kernel died or ran out of time."""
-        started = None
+        """The first cell that never finished: where a kernel died or ran out of time."""
         for index, cell in enumerate(notebook.cells):
-            if cell.get("metadata", {}).get("execution", {}).get("iopub.execute_input"):
-                started = index
-        return started
+            if cell.cell_type != "code" or not cell.source.strip():
+                continue
+            if "shell.execute_reply" not in cell.get("metadata", {}).get("execution", {}):
+                return index
+        return None
 
     try:
         executor.preprocess(notebook, {"metadata": {"path": os.path.dirname(path) or "."}})
