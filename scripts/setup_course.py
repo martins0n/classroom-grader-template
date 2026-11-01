@@ -11,7 +11,6 @@ for a Google OAuth desktop client. It:
 The encryption key is generated in memory and sent straight to GitHub. No file gets a copy.
 """
 import argparse
-import json
 import subprocess
 import sys
 from pathlib import Path
@@ -22,9 +21,11 @@ from src.encryption import generate_master_key
 
 
 def gh(*args, stdin=None) -> str:
-    return subprocess.run(
-        ["gh", *args], input=stdin, capture_output=True, text=True, check=True
-    ).stdout.strip()
+    done = subprocess.run(["gh", *args], input=stdin, capture_output=True, text=True)
+    if done.returncode != 0:
+        # Secrets go through stdin, so this message cannot contain one.
+        sys.exit(f"gh {args[0]} failed: {done.stderr.strip()}")
+    return done.stdout.strip()
 
 
 def set_secret(repo: str, name: str, value: str) -> None:
@@ -34,7 +35,8 @@ def set_secret(repo: str, name: str, value: str) -> None:
 
 
 def existing_secrets(repo: str) -> set:
-    return {item["name"] for item in json.loads(gh("secret", "list", "--repo", repo, "--json", "name"))}
+    # Through the API: "gh secret list --json" does not exist in every gh version.
+    return set(gh("api", f"repos/{repo}/actions/secrets", "--paginate", "--jq", ".secrets[].name").split())
 
 
 def choose_courses(client) -> list:
