@@ -24,7 +24,7 @@ repository being private.
 
 ## Set up a new course
 
-You need Python 3.11+, the [GitHub CLI](https://cli.github.com) (`gh auth login`) and a Google
+You need Python 3.11+, the [GitHub CLI](https://cli.github.com) 2.31 or newer (`gh auth login`) and a Google
 account that teaches the course.
 
 ### 1. Create the repository

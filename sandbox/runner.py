@@ -31,7 +31,7 @@ def extract_json_outputs(notebook):
 
 def execute(path):
     import nbformat
-    from nbclient.exceptions import CellExecutionError, CellTimeoutError
+    from nbclient.exceptions import CellExecutionError, CellTimeoutError, DeadKernelError
     from nbconvert.preprocessors import ExecutePreprocessor
 
     timeout = int(os.environ.get("SANDBOX_CELL_TIMEOUT", "3000"))
@@ -45,12 +45,22 @@ def execute(path):
                     return index
         return None
 
+    def running_cell():
+        """The last cell that started: where a kernel died or ran out of time."""
+        started = None
+        for index, cell in enumerate(notebook.cells):
+            if cell.get("metadata", {}).get("execution", {}).get("iopub.execute_input"):
+                started = index
+        return started
+
     try:
         executor.preprocess(notebook, {"metadata": {"path": os.path.dirname(path) or "."}})
     except CellExecutionError as exc:
         return {"status": "error", "error_type": exc.ename, "cell_index": failed_cell()}
     except CellTimeoutError:
-        return {"status": "error", "error_type": "CellTimeout", "cell_index": None}
+        return {"status": "error", "error_type": "CellTimeout", "cell_index": running_cell()}
+    except DeadKernelError:
+        return {"status": "error", "error_type": "DeadKernelError", "cell_index": running_cell()}
     return {"status": "ok", "outputs": extract_json_outputs(notebook)}
 
 

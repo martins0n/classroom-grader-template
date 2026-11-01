@@ -139,6 +139,23 @@ def test_runaway_notebook_is_killed(sandbox_ready, tmp_path):
     assert time.time() - started < 60
 
 
+def test_killed_kernel_names_the_cell(sandbox_ready, tmp_path):
+    notebook = write_notebook(
+        tmp_path / "killed.ipynb", "x = 1", "import os, signal; os.kill(os.getpid(), signal.SIGKILL)"
+    )
+    result = run_notebook(notebook)
+    assert result.ok is False and result.error_type == "DeadKernelError"
+    assert result.cell_index == 1
+
+
+def test_running_out_of_memory_gives_a_verdict(sandbox_ready, tmp_path):
+    config = SandboxConfig(deps_dir=os.environ["SANDBOX_DEPS_DIR"], memory="400m")
+    notebook = write_notebook(tmp_path / "hungry.ipynb", "x = 1", "block = bytearray(4 * 1024 ** 3)")
+    result = run_notebook(notebook, config)
+    assert result.ok is False
+    assert result.error_type in ("DeadKernelError", "NoResult", "MemoryError")
+
+
 def test_flooding_the_result_channel_is_bounded(sandbox_ready, tmp_path):
     notebook = write_notebook(
         tmp_path / "flood.ipynb",
