@@ -8,7 +8,7 @@ import shutil
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
 from .encryption import SubmissionCipher
 from .github_manager import git_blob_sha, local_tree_blobs

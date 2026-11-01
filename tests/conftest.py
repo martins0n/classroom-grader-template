@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def sandbox_ready():
     """Docker tests run on a real GitHub runner. There, skipping them would be a false pass."""
     if shutil.which("docker") and os.environ.get("SANDBOX_DEPS_DIR"):

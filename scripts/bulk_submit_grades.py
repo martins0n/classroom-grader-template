@@ -28,7 +28,6 @@ def load_assignment_config(assignment_id: str) -> dict:
     Returns:
         Dictionary with course_id, coursework_id, max_points
     """
-    # Try environment variables first
     coursework_id_env = f"ASSIGNMENT_{assignment_id.upper().replace('-', '_')}_COURSEWORK_ID"
     course_id_env = f"ASSIGNMENT_{assignment_id.upper().replace('-', '_')}_COURSE_ID"
     max_points_env = f"ASSIGNMENT_{assignment_id.upper().replace('-', '_')}_MAX_POINTS"
@@ -39,22 +38,6 @@ def load_assignment_config(assignment_id: str) -> dict:
             'coursework_id': os.getenv(coursework_id_env),
             'max_points': float(os.getenv(max_points_env, '100'))
         }
-
-    # Try courses_config.json
-    import json
-    config_path = Path('courses_config.json')
-    if config_path.exists():
-        with open(config_path) as f:
-            config = json.load(f)
-
-        for course in config.get('courses', []):
-            for assignment in course.get('assignments', []):
-                if assignment.get('name') == assignment_id or assignment.get('id') == assignment_id:
-                    return {
-                        'course_id': course.get('id'),
-                        'coursework_id': assignment.get('id'),
-                        'max_points': assignment.get('maxPoints', 100)
-                    }
 
     return {}
 
@@ -76,7 +59,7 @@ def bulk_submit_grades(csv_file: str, dry_run: bool = False):
     # Extract assignment ID from filename (grades_{assignment_id}.csv)
     filename = csv_path.stem
     if not filename.startswith('grades_'):
-        print(f"❌ Error: CSV filename must be in format 'grades_{{assignment_id}}.csv'")
+        print("❌ Error: CSV filename must be in format 'grades_{assignment_id}.csv'")
         print(f"   Got: {csv_path.name}")
         return False
 
@@ -92,7 +75,6 @@ def bulk_submit_grades(csv_file: str, dry_run: bool = False):
         print(f"  ASSIGNMENT_{assignment_id.upper().replace('-', '_')}_COURSE_ID=<course_id>")
         print(f"  ASSIGNMENT_{assignment_id.upper().replace('-', '_')}_COURSEWORK_ID=<coursework_id>")
         print(f"  ASSIGNMENT_{assignment_id.upper().replace('-', '_')}_MAX_POINTS=100")
-        print("\nOr create courses_config.json with course and assignment details.")
         return False
 
     course_id = assignment_config.get('course_id')
@@ -140,7 +122,7 @@ def bulk_submit_grades(csv_file: str, dry_run: bool = False):
         return False
 
     # Submit grades
-    print(f"\n📤 Submitting grades to Google Classroom...")
+    print("\n📤 Submitting grades to Google Classroom...")
     print("=" * 60)
 
     success_count = 0
@@ -161,7 +143,7 @@ def bulk_submit_grades(csv_file: str, dry_run: bool = False):
             )
 
             if not submission_id:
-                print(f"   ⚠️  No submission found - skipping")
+                print("   ⚠️  No submission found - skipping")
                 skipped_count += 1
                 continue
 
@@ -175,10 +157,10 @@ def bulk_submit_grades(csv_file: str, dry_run: bool = False):
             )
 
             if success:
-                print(f"   ✓ Grade submitted successfully")
+                print("   ✓ Grade submitted successfully")
                 success_count += 1
             else:
-                print(f"   ✗ Submission failed")
+                print("   ✗ Submission failed")
                 failed_count += 1
 
         except Exception as e:

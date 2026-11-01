@@ -306,7 +306,7 @@ class ClassroomClient:
             }
 
             # Update the submission with draft grade
-            result = self.service.courses().courseWork().studentSubmissions().patch(
+            self.service.courses().courseWork().studentSubmissions().patch(
                 courseId=course_id,
                 courseWorkId=coursework_id,
                 id=submission_id,

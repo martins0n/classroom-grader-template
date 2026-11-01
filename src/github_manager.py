@@ -3,7 +3,6 @@ import base64
 import hashlib
 import logging
 import subprocess
-from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from github import Auth, Github, GithubException, InputGitTreeElement

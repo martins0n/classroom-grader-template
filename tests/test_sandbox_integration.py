@@ -24,9 +24,9 @@ def probe_notebook(path: Path) -> Path:
     return write_notebook(path, source + "\nprint(json.dumps(run_probes()))")
 
 
-@pytest.fixture
-def probe_result(sandbox_ready, tmp_path):
-    result = run_notebook(probe_notebook(tmp_path / "attack.ipynb"))
+@pytest.fixture(scope="module")
+def probe_result(sandbox_ready, tmp_path_factory):
+    result = run_notebook(probe_notebook(tmp_path_factory.mktemp("probe") / "attack.ipynb"))
     assert result.ok, result.error_type
     assert len(result.outputs) == 1
     return result.outputs[0]
@@ -138,8 +138,11 @@ def test_flooding_the_result_channel_is_bounded(sandbox_ready, tmp_path):
         "for _ in range(64):\n"
         "    os.write(fd, chunk)\n",
     )
+    started = time.time()
     result = run_notebook(notebook)
     assert result.ok is False
+    assert result.error_type in ("OutputTooLarge", "NoResult")
+    assert time.time() - started < 120
 
 
 def test_student_cannot_forge_a_host_read_through_symlinks(sandbox_ready, tmp_path):

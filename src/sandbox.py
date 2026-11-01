@@ -27,6 +27,7 @@ IMAGE_FILE = REPO_ROOT / "sandbox" / "image.txt"
 SANDBOX_UID = "65534:65534"  # "nobody": not root and not the runner user either
 MAX_RESULT_BYTES = 16 * 1024 * 1024
 DOCKER_FAILURE_CODES = {125, 126, 127}
+WAIT_AFTER_EXIT_SECONDS = 30
 _ERROR_TYPE_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_.]{0,99}")
 
 
@@ -170,10 +171,16 @@ def run_notebook(notebook_path: Path, config: Optional[SandboxConfig] = None) ->
                         stop_container("OutputTooLarge")
                         break
                     received.extend(chunk)
-                returncode = process.wait()
+                # Close first: a docker client blocked on writing to a pipe nobody reads
+                # would never exit, and one notebook could hang the job until its timeout.
+                process.stdout.close()
+                try:
+                    returncode = process.wait(timeout=WAIT_AFTER_EXIT_SECONDS)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    returncode = process.wait()
             finally:
                 timer.cancel()
-                process.stdout.close()
             if verdict["error_type"]:
                 return ExecutionResult(ok=False, error_type=verdict["error_type"])
             if returncode in DOCKER_FAILURE_CODES and not received:
