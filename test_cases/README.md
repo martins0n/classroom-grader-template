@@ -23,7 +23,8 @@ at all falls back to the numeric coursework id. The branch name also shows the r
 
 The notebook runs from top to bottom in the sandbox. Every output that parses as JSON, a
 `print(json.dumps(...))` for example, is collected in order and compared with `expected_output.json`
-by position. An exception in any cell means a score of 0, and the student is told the error type and
+by position. Everything one cell prints counts as a single output, so print one JSON document per
+cell. An exception in any cell means a score of 0, and the student is told the error type and
 the cell number.
 
 Notebooks run with the submitted attachments in the working directory. They have no access to this
@@ -72,6 +73,10 @@ A list is compared item by item and the score is the percentage of matches:
 ```
 
 ## `requirements.txt`
+
+**Pin every version**, such as `pyarrow==22.0.0`. An unpinned package installs whatever is newest on
+the day the cache is rebuilt, and that can break later. A new `pyarrow` that needs NumPy 2 next to a
+library that pins NumPy 1 fails every student with an `ImportError`, while pip reports no conflict.
 
 Packages for this assignment, installed into the sandbox on top of `sandbox/requirements.txt`. They
 are cached, and pushing a change to this file builds the new set ahead of time. Everything should be

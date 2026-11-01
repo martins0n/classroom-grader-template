@@ -66,6 +66,10 @@ def test_cloud_metadata_is_blocked(probe_result):
     assert not any(probe_result["metadata_reachable"].values())
 
 
+def test_services_on_the_host_are_blocked(probe_result):
+    assert probe_result["host_ports_open"] == []
+
+
 def test_notebooks_can_resolve_names(probe_result):
     """Real assignments download their data."""
     assert probe_result["dns"] is True

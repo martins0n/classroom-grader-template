@@ -96,6 +96,15 @@ def tcp_reachable(host, port=80, timeout=3):
         return False
 
 
+def gateway_address():
+    with open("/proc/net/route") as stream:
+        for line in stream.readlines()[1:]:
+            fields = line.split()
+            if fields[1] == "00000000":
+                return socket.inet_ntoa(bytes.fromhex(fields[2])[::-1])
+    return None
+
+
 def sudo_works():
     try:
         return subprocess.run(["sudo", "-n", "true"], capture_output=True, timeout=10).returncode == 0
@@ -149,6 +158,7 @@ def run_probes(in_sandbox=True):
             writes={d: can_write(d) for d in ("/work", "/tmp", "/venv", "/opt/sandbox", "/usr/local", "/")},
             mount=mount_works(),
             metadata_reachable={h: tcp_reachable(h) for h in ("169.254.169.254", "168.63.129.16")},
+            host_ports_open=[p for p in (22, 80, 443, 2375, 2376) if tcp_reachable(gateway_address(), p)],
             dns=resolves("pypi.org"),
             runtime_pip_error=runtime_pip_install(),
         )
