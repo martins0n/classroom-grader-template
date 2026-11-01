@@ -7,11 +7,13 @@ import ctypes
 import json
 import os
 import socket
+import stat
 import subprocess
 import sys
 import time
 
-CANARY_PREFIX = "SELFTEST-CANARY-"
+# Split so that the notebook holding this source does not itself match.
+CANARY_PREFIX = "SELFTEST" + "-CANARY-"
 HOST_ENV_PREFIXES = ("GITHUB_", "ACTIONS_", "RUNNER_", "SELFTEST_", "ENCRYPTION", "GOOGLE_", "GH_")
 SKIP_DIRS = {"node_modules", ".cache", ".cargo", ".rustup", ".dotnet", ".nvm", ".npm", "venv", "site-packages"}
 
@@ -48,14 +50,16 @@ def file_hits():
     needle = CANARY_PREFIX.encode()
     for root in filter(None, dict.fromkeys(roots)):
         for directory, subdirs, files in os.walk(root, followlinks=False):
+            if time.time() > deadline or seen > 50000:
+                return sorted(set(hits))
             subdirs[:] = [d for d in subdirs if d not in SKIP_DIRS]
             for name in files:
-                if name == "probe.py" or time.time() > deadline or seen > 50000:
-                    continue
                 seen += 1
                 path = os.path.join(directory, name)
                 try:
-                    if os.path.islink(path) or os.path.getsize(path) > 262144:
+                    # Regular files only: opening a FIFO, of which /run has several, blocks forever.
+                    info = os.lstat(path)
+                    if not stat.S_ISREG(info.st_mode) or info.st_size > 262144:
                         continue
                     with open(path, "rb") as stream:
                         if needle in stream.read():
@@ -104,17 +108,27 @@ def mount_works():
     return libc.mount(b"none", b"/tmp", b"tmpfs", 0, None) == 0
 
 
+def resolves(host):
+    try:
+        socket.gethostbyname(host)
+        return True
+    except OSError:
+        return False
+
+
 def runtime_pip_install():
+    """Return an empty string on success, otherwise what went wrong."""
     try:
         done = subprocess.run(
             [sys.executable, "-m", "pip", "install", "--quiet", "--disable-pip-version-check", "cowsay"],
-            capture_output=True, timeout=120,
+            capture_output=True, text=True, timeout=120,
         )
         if done.returncode != 0:
-            return False
-        return subprocess.run([sys.executable, "-c", "import cowsay"], capture_output=True).returncode == 0
-    except (OSError, subprocess.SubprocessError):
-        return False
+            return done.stderr[-800:] or f"pip exited with {done.returncode}"
+        check = subprocess.run([sys.executable, "-c", "import cowsay"], capture_output=True, text=True)
+        return "" if check.returncode == 0 else check.stderr[-800:]
+    except (OSError, subprocess.SubprocessError) as exc:
+        return repr(exc)
 
 
 def run_probes(in_sandbox=True):
@@ -135,7 +149,8 @@ def run_probes(in_sandbox=True):
             writes={d: can_write(d) for d in ("/work", "/tmp", "/venv", "/opt/sandbox", "/usr/local", "/")},
             mount=mount_works(),
             metadata_reachable={h: tcp_reachable(h) for h in ("169.254.169.254", "168.63.129.16")},
-            runtime_pip_install=runtime_pip_install(),
+            dns=resolves("pypi.org"),
+            runtime_pip_error=runtime_pip_install(),
         )
     return result
 

@@ -28,6 +28,7 @@ SANDBOX_UID = "65534:65534"  # "nobody": not root and not the runner user either
 MAX_RESULT_BYTES = 16 * 1024 * 1024
 DOCKER_FAILURE_CODES = {125, 126, 127}
 WAIT_AFTER_EXIT_SECONDS = 30
+KILL_TIMEOUT_SECONDS = 30
 _ERROR_TYPE_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_.]{0,99}")
 
 
@@ -71,6 +72,12 @@ class ExecutionResult:
     cell_index: Optional[int] = None
 
 
+def _dns_args(network: str) -> List[str]:
+    # By default containers on a runner resolve names through 168.63.129.16. That is also the
+    # Azure host endpoint prepare-sandbox blocks, so they need a resolver of their own.
+    return [] if network == "none" else ["--dns=1.1.1.1", "--dns=8.8.8.8"]
+
+
 def build_docker_args(
     config: SandboxConfig, work_dir: str, notebook_name: str, container_name: str
 ) -> List[str]:
@@ -87,6 +94,7 @@ def build_docker_args(
         f"--memory={config.memory}",
         f"--memory-swap={config.memory}",
         f"--network={config.network}",
+        *_dns_args(config.network),
         "--log-driver=none",
         "--workdir", "/work",
         "--mount", f"type=bind,src={work_dir},dst=/work",
@@ -144,13 +152,6 @@ def run_notebook(notebook_path: Path, config: Optional[SandboxConfig] = None) ->
     container_name = f"grader-{uuid.uuid4().hex}"
     verdict = {"error_type": None}
 
-    def stop_container(error_type: str) -> None:
-        verdict["error_type"] = error_type
-        subprocess.run(
-            ["docker", "kill", container_name],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False,
-        )
-
     try:
         work_dir = Path(temp_root) / "work"
         _prepare_work_dir(notebook_path, work_dir)
@@ -159,20 +160,42 @@ def run_notebook(notebook_path: Path, config: Optional[SandboxConfig] = None) ->
             process = subprocess.Popen(
                 args, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=stderr
             )
+
+            def stop_container(error_type: str) -> None:
+                verdict["error_type"] = error_type
+                try:
+                    subprocess.run(
+                        ["docker", "kill", container_name],
+                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False,
+                        timeout=KILL_TIMEOUT_SECONDS,
+                    )
+                except subprocess.TimeoutExpired:
+                    pass
+                # Ending the client closes the pipe, and that ends the read loop below.
+                process.kill()
+
             timer = threading.Timer(config.hard_timeout, stop_container, ["HardTimeout"])
             timer.start()
             received = bytearray()
+            too_large = False
             try:
+                # Keep reading until the client is gone, even past the limit. "docker kill"
+                # hangs while the container's output is backed up, so one notebook printing
+                # too much would otherwise hold the job until its timeout.
                 while True:
                     chunk = process.stdout.read(65536)
                     if not chunk:
                         break
+                    if too_large:
+                        continue
                     if len(received) + len(chunk) > MAX_RESULT_BYTES:
-                        stop_container("OutputTooLarge")
-                        break
+                        too_large = True
+                        received.clear()
+                        threading.Thread(
+                            target=stop_container, args=["OutputTooLarge"], daemon=True
+                        ).start()
+                        continue
                     received.extend(chunk)
-                # Close first: a docker client blocked on writing to a pipe nobody reads
-                # would never exit, and one notebook could hang the job until its timeout.
                 process.stdout.close()
                 try:
                     returncode = process.wait(timeout=WAIT_AFTER_EXIT_SECONDS)

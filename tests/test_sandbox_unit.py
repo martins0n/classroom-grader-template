@@ -1,8 +1,12 @@
 import json
+import os
+import time
 
 import pytest
 
-from src.sandbox import SandboxConfig, build_docker_args, parse_result
+from conftest import write_notebook
+from src import sandbox
+from src.sandbox import RUNNER_PATH, SandboxConfig, build_docker_args, parse_result, run_notebook
 
 
 def args():
@@ -18,7 +22,8 @@ def test_container_is_locked_down():
 
 
 def test_nothing_dangerous_is_passed_in():
-    text = " ".join(args())
+    # The runner script is mounted read-only from the checkout, under /home/runner on a real runner.
+    text = " ".join(args()).replace(str(RUNNER_PATH), "runner.py")
     for forbidden in ("--privileged", "docker.sock", "--env-file", "--pid=host", "--network=host",
                       "--ipc=host", "--cap-add", "GITHUB", "ENCRYPTION", "TOKEN", "/home/runner"):
         assert forbidden not in text
@@ -39,7 +44,7 @@ def test_dependencies_and_runner_are_read_only():
 @pytest.mark.parametrize("raw", [
     b"", b"not json", b"[]", b"null", b"{}", b'{"status":"ok"}', b'{"status":"ok","outputs":1}',
     b'{"status":"weird"}', b"[" * 100000, b'{"status":"ok","outputs":[]}{"status":"ok","outputs":[1]}',
-])
+], ids=lambda raw: repr(raw[:24]))  # a 100000 character test name stops the CI log dead
 def test_malformed_results_are_a_failure_not_a_crash(raw):
     assert parse_result(raw).ok is False
 
@@ -54,3 +59,37 @@ def test_error_fields_are_validated():
 def test_good_result():
     result = parse_result(b'{"status":"ok","outputs":[{"a":1}]}')
     assert result.ok and result.outputs == [{"a": 1}]
+
+
+def test_names_resolve_without_the_blocked_azure_endpoint():
+    assert "--dns=1.1.1.1" in args()
+    config = SandboxConfig(deps_dir="/deps", image="img:1", network="none")
+    assert not [item for item in build_docker_args(config, "/w", "a.ipynb", "n") if item.startswith("--dns")]
+
+
+def install_fake_docker(tmp_path, monkeypatch, run_command, kill_command):
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    docker = bin_dir / "docker"
+    docker.write_text(f'#!/bin/sh\ncase "$1" in\n  run) {run_command} ;;\n  kill) {kill_command} ;;\nesac\n')
+    docker.chmod(0o755)
+    monkeypatch.setenv("PATH", f"{bin_dir}{os.pathsep}{os.environ['PATH']}")
+    monkeypatch.setattr(sandbox, "KILL_TIMEOUT_SECONDS", 1)
+
+
+@pytest.mark.parametrize("run_command,kill_command,hard_timeout,expected", [
+    ("exec yes xxxxxxxx", "exit 0", 600, "OutputTooLarge"),
+    ("exec yes xxxxxxxx", "exec sleep 600", 600, "OutputTooLarge"),
+    ("exec sleep 600", "exit 0", 1, "HardTimeout"),
+    ("exec sleep 600", "exec sleep 600", 1, "HardTimeout"),
+], ids=["flood", "flood, docker kill hangs", "silent", "silent, docker kill hangs"])
+def test_a_notebook_cannot_hold_the_job(tmp_path, monkeypatch, run_command, kill_command, hard_timeout, expected):
+    install_fake_docker(tmp_path, monkeypatch, run_command, kill_command)
+    submission = tmp_path / "submission"
+    submission.mkdir()
+    notebook = write_notebook(submission / "a.ipynb", "x = 1")
+    config = SandboxConfig(deps_dir=str(tmp_path), image="img:1", hard_timeout=hard_timeout)
+    started = time.time()
+    result = run_notebook(notebook, config)
+    assert result.ok is False and result.error_type == expected
+    assert time.time() - started < 20

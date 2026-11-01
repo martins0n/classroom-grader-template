@@ -66,8 +66,13 @@ def test_cloud_metadata_is_blocked(probe_result):
     assert not any(probe_result["metadata_reachable"].values())
 
 
+def test_notebooks_can_resolve_names(probe_result):
+    """Real assignments download their data."""
+    assert probe_result["dns"] is True
+
+
 def test_notebooks_can_still_pip_install_at_runtime(probe_result):
-    assert probe_result["runtime_pip_install"] is True
+    assert probe_result["runtime_pip_error"] == ""
 
 
 def test_control_same_probe_on_the_host_finds_the_canaries(sandbox_ready):
@@ -75,11 +80,12 @@ def test_control_same_probe_on_the_host_finds_the_canaries(sandbox_ready):
     if not os.environ.get("SELFTEST_CANARY"):
         pytest.skip("canaries are planted by the workflow")
     done = subprocess.run(
-        [sys.executable, str(ROOT / "tests" / "probe.py")], capture_output=True, text=True, check=True
+        [sys.executable, str(ROOT / "tests" / "probe.py")],
+        capture_output=True, text=True, check=True, timeout=200,
     )
     control = json.loads(done.stdout)
     assert "SELFTEST_CANARY" in control["env_hits"]
-    assert len(control["file_hits"]) >= 3
+    assert sum(hit.endswith(".selftest-canary") for hit in control["file_hits"]) >= 3
     assert control["proc"]["runner_visible"] is True
     assert control["sudo"] is True
 
