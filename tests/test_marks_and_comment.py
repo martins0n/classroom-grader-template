@@ -96,3 +96,10 @@ def test_pipeline_problem_records_no_score():
 def test_bad_numbers_in_a_marker_are_rejected():
     assert parse_marker('<!-- grade-result: {"student":"a","assignment":"b","score":NaN} -->') is None
     assert parse_marker('<!-- grade-result: {"student":"a","assignment":"b","score":"x"} -->') is None
+
+
+def test_a_resource_limit_asks_for_a_manual_check():
+    report = {"error": "Notebook failed to execute", "error_type": "HardTimeout", "score": 0.0, "passed": False}
+    assert "check it by hand" in render("student-a_at_b_c/assignment-hw-1", report)
+    report["error_type"] = "ValueError"
+    assert "check it by hand" not in render("student-a_at_b_c/assignment-hw-1", report)

@@ -122,6 +122,6 @@ Optional repository variables (**Settings → Secrets and variables → Actions 
 | Download fails with `ENCRYPTION_KEY is not set` | Run `python scripts/setup_course.py --skip-google`. |
 | `Could not create a pull request` in the download log | "Allow GitHub Actions to create pull requests" is off. Run `python scripts/setup_course.py --skip-google`. |
 | Comment says `ModuleNotFoundError` | Add the package to `test_cases/<assignment>/requirements.txt` and run **Regrade All**. |
-| Comment says `HardTimeout`, `CellTimeout` or `NoResult` | The notebook ran too long or ran out of memory. See the settings above. |
+| Comment says `HardTimeout`, `CellTimeout`, `DeadKernelError` or `NoResult` | The notebook ran too long or ran out of memory, and the comment asks for a manual check. The score of 0 is not a judgement of the work. Check it by hand, or raise the settings above and rerun it. |
 | Comment says no expected outputs are configured | The directory name in `test_cases/` differs from the branch's assignment name. |
 | Two assignments share one branch | Their titles differ only in non-Latin characters. See [test_cases/README.md](test_cases/README.md). |

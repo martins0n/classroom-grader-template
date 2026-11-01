@@ -20,6 +20,7 @@ MARKER_PREFIX = "<!-- grade-result: "
 MARKER_SUFFIX = " -->"
 MARKER_RE = re.compile(r"\A<!-- grade-result: (\{[^\n]*\}) -->(?:\n|\Z)")
 MAX_TEXT_LENGTH = 200
+RESOURCE_LIMIT_ERRORS = {"HardTimeout", "CellTimeout", "DeadKernelError", "NoResult", "OutputTooLarge"}
 
 
 def untrusted(text) -> str:
@@ -72,6 +73,11 @@ def render(branch: str, report: Optional[dict], run_url: str = "") -> str:
             if isinstance(report.get("cell_index"), int):
                 body += f", in cell {report['cell_index']} (counting from 0)"
             body += "\n\n"
+        if report.get("error_type") in RESOURCE_LIMIT_ERRORS:
+            body += (
+                "⚠️ The notebook hit a resource limit or died before finishing. "
+                "This says nothing about whether the work is correct, so check it by hand.\n\n"
+            )
         body += "**Score: 0**"
         return make_marker(student_id, assignment, 0.0) + "\n" + header + body + details
 
