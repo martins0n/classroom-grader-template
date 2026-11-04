@@ -8,7 +8,8 @@ for a Google OAuth desktop client. It:
   3. stores everything as GitHub secrets
   4. applies the repository settings the pipeline relies on
 
-The encryption key is generated in memory and sent straight to GitHub. No file gets a copy.
+The encryption key is generated in memory and sent to GitHub. GitHub never shows it again, so
+a copy goes to a private file on this machine, for reading stored work later. See README.md.
 """
 import argparse
 import subprocess
@@ -18,6 +19,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.encryption import generate_master_key
+from src.key_copy import save_key_copy
 
 
 def gh(*args, stdin=None) -> str:
@@ -106,7 +108,10 @@ def main() -> int:
     if "ENCRYPTION_KEY" in existing_secrets(repo) and not args.rotate_key:
         print("  secret ENCRYPTION_KEY: already set, kept (use --rotate-key to replace it)")
     else:
-        set_secret(repo, "ENCRYPTION_KEY", generate_master_key())
+        key = generate_master_key()
+        # Saved first, so that GitHub never holds a key nobody else has.
+        print(f"  key copy: {save_key_copy(repo, key)}")
+        set_secret(repo, "ENCRYPTION_KEY", key)
 
     apply_repo_settings(repo)
     print("\nDone. Next: run the 'Selftest: pipeline' workflow in the Actions tab.")

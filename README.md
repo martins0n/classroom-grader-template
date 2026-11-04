@@ -62,8 +62,11 @@ python scripts/setup_course.py
 ```
 
 This logs in to Google, lets you pick the courses, generates a new encryption key, stores the
-secrets in GitHub and applies the repository settings. It leaves no secrets on your machine other
-than `credentials.json`. The encryption key exists only as a GitHub secret.
+secrets in GitHub and applies the repository settings. It leaves two secrets on your machine:
+`credentials.json` and a copy of the encryption key in
+`~/.config/classroom-grader/<owner>__<repo>.key`. Whoever has that copy can read every submission of
+the course, so consider moving it to a password manager (see
+[Reading stored versions](#reading-stored-versions)).
 
 Log in with the account you added as a test user. Google warns that it has not verified the app:
 choose **Continue**, then tick **Select all** on the permissions page.
@@ -96,6 +99,33 @@ Scheduled workflows stay off until `scripts/setup_course.py` sets the `GRADER_EN
 pause a course, set that variable to anything else.
 
 To grade one student by hand, run **Grade Homework Submission** with their branch name.
+
+## Reading stored versions
+
+Classroom shows only the current attachment. Every version the pipeline downloaded stays encrypted
+in the student's branch history. To decrypt them on your machine, run this from your clone:
+
+```bash
+python scripts/export_versions.py --student a_b_at_gmail_com --assignment homework-1 --output-dir ~/grader-versions
+```
+
+Without `--student` or `--assignment` it exports everyone or every assignment. Each version gets its
+own folder, such as `v02-20261104-0710-39690ac`, named after the time of the sync, not the student's
+turn-in time. The output must be outside the clone, because the repository is public.
+
+**Exported notebooks are untrusted student code.** Read them, but do not run them on your machine.
+
+The script uses the saved key copy. If you moved the key to a password manager, delete the file and
+pass the key for one command instead:
+
+```bash
+ENCRYPTION_KEY="$(<command that prints the key>)" python scripts/export_versions.py --output-dir ~/grader-versions
+```
+
+GitHub cannot show the secret again. If a course has no copy of its key, because the copy was lost or
+the course was set up before this feature, run `python scripts/setup_course.py --skip-google --rotate-key`.
+That saves a new key and re-encrypts current submissions on the next download, but older versions
+stay unreadable. A normal rotation keeps the previous copy beside the new one, so old versions still open.
 
 ## Sending grades to Classroom
 

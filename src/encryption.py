@@ -1,7 +1,8 @@
 """Encryption of student submissions stored in the public repository.
 
-There is one master key per course. It exists only as the ENCRYPTION_KEY GitHub secret
-and is never written to disk. Each student gets keys derived from it with HKDF.
+There is one master key per course. On runners it exists only in the ENCRYPTION_KEY GitHub
+secret and is never written to disk. The teacher keeps a copy on their own machine, see
+src/key_copy.py. Each student gets keys derived from it with HKDF.
 
 Encryption is deterministic so an unchanged submission produces an identical file and
 no new commit. The nonce is an HMAC of the plaintext under a secret key. An unkeyed hash
