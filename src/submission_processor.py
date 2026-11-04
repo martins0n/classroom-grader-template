@@ -139,7 +139,7 @@ class SubmissionProcessor:
             "",
             f"**Student:** {student_id}",
             f"**Assignment:** {title or assignment}",
-            f"**Submitted:** {timestamp}",
+            f"**Synced:** {timestamp}",
             f"**State:** {state or 'UNKNOWN'}",
             "",
             "<!-- METADATA",
