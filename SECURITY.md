@@ -22,7 +22,7 @@ the **Selftest: sandbox** workflow.
 
 | Attack | Defence | Test |
 | --- | --- | --- |
-| The notebook reads a key file left on disk | The key is never written to any file. | `test_encryption` |
+| The notebook reads a key file left on disk | The key is never written to any file on a runner. The teacher's copy and the export refuse to run in CI, and no workflow uses them. | `test_encryption`, `test_export_versions` |
 | The notebook reads the job's memory or environment. The runner host has passwordless `sudo`, so clearing variables is not enough | The notebook runs in a container with its own process list and file system: a non-root user, no capabilities, `no-new-privileges`, read-only root, no Docker socket. | **live** `test_sandbox_integration` |
 | The notebook steals the `GITHUB_TOKEN` from `.git/config` | The container has no checkout. Checkouts use `persist-credentials: false`. The job's token can only read. Comments are posted by a separate job on another machine. | **live**, `test_workflows` |
 | Cache poisoning: the notebook modifies Python packages, they get cached, and the next run decrypts with them | The host's Python is never cached. Sandbox dependencies are saved before student code exists on the machine and are mounted read-only. | **live**, `test_workflows` |
@@ -55,6 +55,10 @@ canaries there. Otherwise a clean result from the sandbox would prove nothing.
 - **Plagiarism.** Nothing here detects copying between students.
 - **Anyone with write access to the repository**, or a compromised Google or GitHub account of the
   teacher. They can read every secret through a workflow of their own.
+- **The teacher's copy of the key.** `setup_course.py` saves it in a private file on the teacher's
+  machine, so that stored versions can be read later. Anyone who gets that file, or a backup of it,
+  can read every submission of the course from the public history, and rotating the key does not
+  undo that. Exported notebooks are also plaintext and untrusted, so they must not be run there.
 
 ## Rotating the key
 
@@ -63,14 +67,16 @@ python scripts/setup_course.py --skip-google --rotate-key
 ```
 
 The next download re-encrypts every current submission and regrades it. Old ciphertext stays in the
-git history, so if the old key really leaked, submissions encrypted with it remain exposed.
+git history, so if the old key really leaked, submissions encrypted with it remain exposed. The
+previous key copy stays beside the new one so that old versions can still be read. Delete it if you
+no longer need them.
 
 Each course must have its own key. `setup_course.py` generates a new one, so never copy one across.
 
 ## Rules when changing this code
 
 - Never run student code on the runner host.
-- Never write a secret to a file, and never print anything that came out of a notebook.
+- Never write a secret to a file on a runner, and never print anything that came out of a notebook.
 - Keep grading on `workflow_dispatch`. Do not add `pull_request` or `pull_request_target` triggers.
 - Do not read files from the sandbox on the host.
 - `tests/test_workflows.py` encodes these rules. Weakening it should be a deliberate decision.
