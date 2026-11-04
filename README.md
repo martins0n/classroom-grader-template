@@ -39,13 +39,19 @@ Only needed once. The same client works for all your courses.
 
 1. In the [Google Cloud Console](https://console.cloud.google.com/), create a project and enable the
    **Google Classroom API** and the **Google Drive API**.
-2. Configure the OAuth consent screen and **publish the app (status "In production")**. In "Testing"
-   status, Google expires the refresh token after 7 days and the hourly download starts failing.
+2. Configure the OAuth consent screen with user type **External**, keep the publishing status at
+   **Testing** and add the account that teaches the course under **Audience → Test users**. Only
+   listed accounts can log in.
 3. Under **Credentials**, create an **OAuth client ID** of type **Desktop app** and save the JSON as
    `credentials.json` in your clone. It is ignored by git.
 
 The token can read all of the account's Google Drive, because that is the only way to read student
 attachments. A dedicated Google account for grading limits what a leaked token would expose.
+
+Google documents a 7-day limit on refresh tokens in Testing, yet one course ran for months without
+logging in again, so plan for either. If the hourly download fails with `invalid_grant`, run the
+setup script again. Publishing the app has not been tried with this template. It needs the Branding
+page completed first, and Google may require verification because Drive access is a restricted scope.
 
 ### 3. Run the setup script
 
@@ -58,6 +64,9 @@ python scripts/setup_course.py
 This logs in to Google, lets you pick the courses, generates a new encryption key, stores the
 secrets in GitHub and applies the repository settings. It leaves no secrets on your machine other
 than `credentials.json`. The encryption key exists only as a GitHub secret.
+
+Log in with the account you added as a test user. Google warns that it has not verified the app:
+choose **Continue**, then tick **Select all** on the permissions page.
 
 ### 4. Check the pipeline
 
@@ -118,7 +127,8 @@ Optional repository variables (**Settings → Secrets and variables → Actions 
 
 | Symptom | Cause and fix |
 | --- | --- |
-| Download fails with `No usable Google token` or `invalid_grant` | The token expired or was revoked. Check that the OAuth app is "In production", then run `python scripts/setup_course.py` again. |
+| Download fails with `No usable Google token` or `invalid_grant` | The token expired or was revoked. Run `python scripts/setup_course.py` again. |
+| Google blocks the login with `Error 403: access_denied` | The account is not a test user of the OAuth app. Add it under **Audience → Test users**. |
 | Download fails with `ENCRYPTION_KEY is not set` | Run `python scripts/setup_course.py --skip-google`. |
 | `Could not create a pull request` in the download log | "Allow GitHub Actions to create pull requests" is off. Run `python scripts/setup_course.py --skip-google`. |
 | Comment says `ModuleNotFoundError` | Add the package to `test_cases/<assignment>/requirements.txt` and run **Regrade All**. |
