@@ -21,6 +21,10 @@ at all falls back to the numeric coursework id. The branch name also shows the r
 
 ## How a notebook is graded
 
+The download picks up work that is turned in or returned and has a Drive file attached, which includes
+notebooks saved from Colab. Links and work a student has unsubmitted are skipped. If several notebooks
+are attached, only the first by file name runs.
+
 The notebook runs from top to bottom in the sandbox. Every output that parses as JSON, a
 `print(json.dumps(...))` for example, is collected in order and compared with `expected_output.json`
 by position. Everything one cell prints counts as a single output, so print one JSON document per
