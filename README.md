@@ -80,7 +80,8 @@ Marks and grade CSVs ignore this student.
 ### 5. Add your assignments
 
 See [test_cases/README.md](test_cases/README.md), add one directory per assignment and push to `main`.
-Submissions are picked up within the hour.
+The download is scheduled hourly, but GitHub can delay scheduled runs by several hours. To pick up
+submissions right away, run **Download Student Submissions** from the Actions tab.
 
 Leave the example directories in place. The self-tests use them, and without them **Selftest: sandbox**
 and **Selftest: pipeline** fail. They apply only to an assignment with the same title.
