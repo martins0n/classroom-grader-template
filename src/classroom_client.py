@@ -49,7 +49,7 @@ class ClassroomClient:
         self._authenticate()
 
     def _authenticate(self):
-        """Authenticate with Google. Interactive login happens only in scripts/setup_course.py."""
+        """Authenticate with Google. Interactive login is only possible outside CI."""
         creds = None
         in_ci = bool(os.getenv('CI') or os.getenv('GITHUB_ACTIONS'))
 

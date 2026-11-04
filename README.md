@@ -56,7 +56,7 @@ page completed first, and Google may require verification because Drive access i
 ### 3. Run the setup script
 
 ```bash
-python -m venv .venv && source .venv/bin/activate
+python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 python scripts/setup_course.py
 ```
@@ -79,8 +79,11 @@ Marks and grade CSVs ignore this student.
 
 ### 5. Add your assignments
 
-See [test_cases/README.md](test_cases/README.md), delete the example assignments you don't need, and
-push to `main`. Submissions are picked up within the hour.
+See [test_cases/README.md](test_cases/README.md), add one directory per assignment and push to `main`.
+Submissions are picked up within the hour.
+
+Leave the example directories in place. The self-tests use them, and without them **Selftest: sandbox**
+and **Selftest: pipeline** fail. They apply only to an assignment with the same title.
 
 ## Workflows
 
@@ -119,7 +122,7 @@ The script uses the saved key copy. If you moved the key to a password manager, 
 pass the key for one command instead:
 
 ```bash
-ENCRYPTION_KEY="$(<command that prints the key>)" python scripts/export_versions.py --output-dir ~/grader-versions
+ENCRYPTION_KEY="$(pass show grader/course-key)" python scripts/export_versions.py --output-dir ~/grader-versions
 ```
 
 GitHub cannot show the secret again. If a course has no copy of its key, because the copy was lost or
@@ -129,8 +132,14 @@ stay unreadable. A normal rotation keeps the previous copy beside the new one, s
 
 ## Sending grades to Classroom
 
-Download a `grades_<assignment>.csv` from an **Aggregate Grades** run, set the assignment's ids and
-run this from your clone:
+Classroom lets an app grade only coursework created by the same Google Cloud project. It refuses
+assignments created in the Classroom web interface with `PERMISSION_DENIED`, and this template does
+not create coursework itself. For those assignments, enter the grades by hand from the
+`grades_<assignment>.csv` of an **Aggregate Grades** run.
+
+`scripts/bulk_submit_grades.py` is for coursework your project created through the API. It has not
+been run against a real class. The ids are in the body of any submission's pull request
+(`gh pr view <number> --json body --jq .body`):
 
 ```bash
 export ASSIGNMENT_HOMEWORK_1_COURSE_ID=<course id>
@@ -138,9 +147,8 @@ export ASSIGNMENT_HOMEWORK_1_COURSEWORK_ID=<coursework id>
 python scripts/bulk_submit_grades.py grades_homework-1.csv --dry-run
 ```
 
-Grades are saved as drafts for you to review and return in Classroom. Classroom only lets an app
-grade coursework created by that same app's Google Cloud project, so this can be refused for
-assignments created in the Classroom web interface.
+Without `--dry-run`, it logs in to Google through a browser and saves grades as drafts for you to
+review and return in Classroom. The login leaves a `token.json` in your clone, so delete it afterwards.
 
 ## Settings
 
@@ -162,6 +170,6 @@ Optional repository variables (**Settings → Secrets and variables → Actions 
 | Download fails with `ENCRYPTION_KEY is not set` | Run `python scripts/setup_course.py --skip-google`. |
 | `Could not create a pull request` in the download log | "Allow GitHub Actions to create pull requests" is off. Run `python scripts/setup_course.py --skip-google`. |
 | Comment says `ModuleNotFoundError` | Add the package to `test_cases/<assignment>/requirements.txt` and run **Regrade All**. |
-| Comment says `HardTimeout`, `CellTimeout`, `DeadKernelError` or `NoResult` | The notebook ran too long or ran out of memory, and the comment asks for a manual check. The score of 0 is not a judgement of the work. Check it by hand, or raise the settings above and rerun it. |
+| Comment says `HardTimeout`, `CellTimeout`, `DeadKernelError`, `NoResult` or `OutputTooLarge` | The notebook ran too long, ran out of memory or printed too much, and the comment asks for a manual check. The score of 0 is not a judgement of the work. Check it by hand, or raise the settings above and rerun it. |
 | Comment says no expected outputs are configured | The directory name in `test_cases/` differs from the branch's assignment name. |
 | Two assignments share one branch | Their titles differ only in non-Latin characters. See [test_cases/README.md](test_cases/README.md). |

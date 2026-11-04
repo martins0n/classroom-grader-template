@@ -115,10 +115,7 @@ def bulk_submit_grades(csv_file: str, dry_run: bool = False):
         print("✓ Authentication successful")
     except Exception as e:
         print(f"❌ Authentication failed: {e}")
-        print("\nMake sure you have:")
-        print("1. Created credentials.json (see README.md)")
-        print("2. Run authentication at least once locally")
-        print("3. Set up token.json with required scopes")
+        print("\nMake sure credentials.json is in this directory (see README.md).")
         return False
 
     # Submit grades
@@ -189,7 +186,7 @@ def main():
     )
     parser.add_argument(
         'csv_file',
-        help='Path to CSV file with grades (e.g., reports/aggregated/grades_homework-2.csv)'
+        help='Path to CSV file with grades, named grades_<assignment>.csv'
     )
     parser.add_argument(
         '--dry-run',
