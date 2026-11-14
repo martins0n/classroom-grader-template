@@ -58,6 +58,22 @@ def parse_marker(body: str) -> Optional[dict]:
     return data
 
 
+MAX_LISTED_NOTEBOOKS = 5
+
+
+def several_notebooks_warning(report: dict) -> str:
+    ignored = report.get("ignored_notebooks")
+    if not isinstance(ignored, list) or not ignored:
+        return ""
+    names = ", ".join(untrusted(name) for name in ignored[:MAX_LISTED_NOTEBOOKS])
+    if len(ignored) > MAX_LISTED_NOTEBOOKS:
+        names += f" and {len(ignored) - MAX_LISTED_NOTEBOOKS} more"
+    return (
+        f"⚠️ Several notebooks are attached. Only {untrusted(report.get('notebook'))}, the first by "
+        f"file name, was graded. Ignored: {names}. Attach one notebook and resubmit.\n\n"
+    )
+
+
 def render(branch: str, report: Optional[dict], run_url: str = "") -> str:
     student_id, assignment = parse_branch(branch)
     header = f"## 🤖 Grading Results\n\n**Student:** {student_id}\n**Assignment:** {assignment}\n\n"
@@ -65,6 +81,7 @@ def render(branch: str, report: Optional[dict], run_url: str = "") -> str:
 
     if report is None:
         return header + "⚠️ Grading did not finish because of a pipeline problem. No score was recorded." + details
+    header += several_notebooks_warning(report)
 
     if "error" in report:
         body = f"### ❌ {untrusted(report['error'])[1:-1]}\n\n"
