@@ -75,8 +75,8 @@ def render(branch: str, report: Optional[dict], run_url: str = "") -> str:
             body += "\n\n"
         if report.get("error_type") in RESOURCE_LIMIT_ERRORS:
             body += (
-                "⚠️ The notebook hit a resource limit or died before finishing. "
-                "This says nothing about whether the work is correct, so check it by hand.\n\n"
+                "⚠️ The notebook ran past the time or memory limit, printed too much, or died "
+                "before finishing. A notebook has to fit the limits to be graded.\n\n"
             )
         body += "**Score: 0**"
         return make_marker(student_id, assignment, 0.0) + "\n" + header + body + details
