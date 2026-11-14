@@ -25,6 +25,11 @@ def grade(student_id: str, assignment_id: str, submission_dir: Path, test_cases_
     if not notebooks:
         return {**base, "error": "No Jupyter notebooks found in submission", "score": 0.0, "passed": False}
 
+    # File names come from the student. They go into the report for the comment, never to stdout.
+    base["notebook"] = notebooks[0].name
+    if len(notebooks) > 1:
+        base["ignored_notebooks"] = [path.name for path in notebooks[1:]]
+
     execution = run_notebook(notebooks[0])
     if not execution.ok:
         return {

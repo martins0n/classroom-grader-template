@@ -89,6 +89,17 @@ def test_crash_is_scored_zero_and_says_where():
     assert "ValueError" in body and "cell 3" in body
 
 
+def test_several_notebooks_are_named_in_the_comment():
+    report = {"score": 50.0, "matches": 1, "total_expected": 2, "notebook": "a.ipynb",
+              "ignored_notebooks": ["b `x` @team.ipynb"] + [f"n{i}.ipynb" for i in range(6)]}
+    body = render(BRANCH, report)
+    assert "Several notebooks are attached" in body and "`a.ipynb`" in body
+    assert "@team" not in body and "and 2 more" in body
+    assert parse_marker(body)["score"] == 50.0
+    del report["ignored_notebooks"]
+    assert "Several notebooks" not in render(BRANCH, report)
+
+
 def test_pipeline_problem_records_no_score():
     assert parse_marker(render(BRANCH, None)) is None
 
