@@ -98,8 +98,10 @@ def test_bad_numbers_in_a_marker_are_rejected():
     assert parse_marker('<!-- grade-result: {"student":"a","assignment":"b","score":"x"} -->') is None
 
 
-def test_a_resource_limit_asks_for_a_manual_check():
+def test_a_resource_limit_is_explained_without_promising_a_manual_check():
     report = {"error": "Notebook failed to execute", "error_type": "HardTimeout", "score": 0.0, "passed": False}
-    assert "check it by hand" in render("student-a_at_b_c/assignment-hw-1", report)
+    comment = render("student-a_at_b_c/assignment-hw-1", report)
+    assert "has to fit the limits" in comment
+    assert "by hand" not in comment
     report["error_type"] = "ValueError"
-    assert "check it by hand" not in render("student-a_at_b_c/assignment-hw-1", report)
+    assert "has to fit the limits" not in render("student-a_at_b_c/assignment-hw-1", report)
