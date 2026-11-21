@@ -9,6 +9,34 @@ import os
 import sys
 
 
+def json_objects(text):
+    """The JSON objects in one output: the whole text if it is one, otherwise every line that is.
+
+    Checks print objects, so nothing else is kept. Reading line by line keeps a check that
+    shares its cell with other prints.
+    """
+    if not isinstance(text, str):
+        return []
+    try:
+        value = json.loads(text)
+    except (ValueError, RecursionError):
+        value = None
+    if isinstance(value, dict):
+        return [value]
+    found = []
+    for line in text.splitlines():
+        line = line.strip()
+        if not line.startswith("{"):
+            continue
+        try:
+            value = json.loads(line)
+        except (ValueError, RecursionError):
+            continue
+        if isinstance(value, dict):
+            found.append(value)
+    return found
+
+
 def extract_json_outputs(notebook):
     outputs = []
     for cell in notebook.cells:
@@ -20,12 +48,7 @@ def extract_json_outputs(notebook):
                 text = output.get("data", {}).get("text/plain")
             elif output.output_type == "stream" and output.get("name") == "stdout":
                 text = output.get("text")
-            if text is None:
-                continue
-            try:
-                outputs.append(json.loads(text))
-            except (json.JSONDecodeError, TypeError):
-                pass
+            outputs.extend(json_objects(text))
     return outputs
 
 

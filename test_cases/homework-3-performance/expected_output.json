@@ -3,19 +3,19 @@
     {
       "name": "Algorithm execution time should be under 5 seconds",
       "points": 20,
-      "expected": 5.0,
+      "expected": { "execution_time": 5.0 },
       "compare": "<"
     },
     {
       "name": "Sorting accuracy must be at least 95%",
       "points": 25,
-      "expected": 0.95,
+      "expected": { "accuracy": 0.95 },
       "compare": ">="
     },
     {
       "name": "Error rate should be below 1%",
       "points": 15,
-      "expected": 0.01,
+      "expected": { "error_rate": 0.01 },
       "compare": "<"
     },
     {
