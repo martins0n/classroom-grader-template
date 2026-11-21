@@ -25,11 +25,20 @@ The download picks up work that is turned in or returned and has a Drive file at
 notebooks saved from Colab. Links and work a student has unsubmitted are skipped. If several notebooks
 are attached, only the first by file name runs, and the comment names it and the ignored ones.
 
-The notebook runs from top to bottom in the sandbox. Every output that parses as JSON, a
-`print(json.dumps(...))` for example, is collected in order and compared with `expected_output.json`
-by position. Everything one cell prints counts as a single output, so print one JSON document per
-cell. An exception in any cell means a score of 0, and the student is told the error type and
-the cell number.
+The notebook runs from top to bottom in the sandbox. Every check expects a JSON object, and a
+check cell prints it on one line with `print(json.dumps({...}))`. The grader collects every JSON
+object the notebook printed, a whole output or a single line of it, and ignores everything else:
+text, numbers, lists, tables and plots. Each check takes the object that shares the most keys with
+its `expected` object, then the one with the fewest other keys, then the earliest. Every object is
+used once.
+
+So other output doesn't move the answers, wherever it is, even in the check cell itself. A check
+whose object is missing gets 0 and the comment names the keys it looked for. The other checks are
+not affected. Give every check its own keys: checks with the same keys take objects in the order
+they were printed.
+
+An exception in any cell means a score of 0, and the student is told the error type and the cell
+number.
 
 Notebooks run with the submitted attachments in the working directory. They have no access to this
 directory. Network access is on, so they can download datasets.
@@ -62,15 +71,16 @@ directory. Network access is on, so they can download datasets.
 | --- | --- |
 | `name` | Shown to the student. |
 | `points` | Points for this case. With `compare` or `compare_fields`, a partly correct object earns partial credit. |
-| `expected` | Expected value, object or list. |
+| `expected` | Expected JSON object. Its keys also find the student's output. A bare number or list is rejected. |
 | `tolerance` | Relative tolerance for numbers: `0.01` is 1%. |
-| `compare` | Operator for a single value: `==`, `!=`, `<`, `<=`, `>`, `>=`. |
-| `compare_fields` | Operator per field of an object. |
+| `compare` | Operator for every field: `==`, `!=`, `<`, `<=`, `>`, `>=`. |
+| `compare_fields` | Operator per field, overriding `compare`. |
 | `tolerance_fields` | Tolerance per field of an object. |
 
 ### Plain list
 
-A list is compared item by item and the score is the percentage of matches:
+A list of objects. Each one is found by its keys like a test case, and the score is the
+percentage of exact matches:
 
 ```json
 [{ "sum": 15, "product": 50 }, { "result": "Hello, World!", "length": 13 }]

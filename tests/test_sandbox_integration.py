@@ -101,6 +101,22 @@ def test_example_solutions_get_full_marks(sandbox_ready, assignment, notebook):
     assert report.get("score") == 100, report
 
 
+def test_other_output_does_not_move_the_answers(sandbox_ready, tmp_path):
+    """Text in a check cell, bare numbers and spare objects all used to shift every later check."""
+    write_notebook(
+        tmp_path / "noisy.ipynb",
+        "import json\nprint('Loading data...')",
+        'print("checking...")\nprint(json.dumps({"sum": 15, "product": 50}))\nprint("done")',
+        "print(len([1, 2, 3]))",
+        "x = [1, 2, 3]\nlen(x)",
+        'print(json.dumps({"debug": 1}))\nprint(json.dumps({"result": "Hello, World!", "length": 13}))',
+        'print(json.dumps({"sorted": [1, 2, 3, 4, 5], "reversed": [5, 4, 3, 2, 1]}))',
+        'print(json.dumps({"pi": 3.14159, "e": 2.71828}))\n[1, 2]',
+    )
+    report = grade("student", "homework-2-example", tmp_path, ROOT / "test_cases")
+    assert report.get("score") == 100, report
+
+
 def _only(source: Path, notebook: str) -> Path:
     import shutil
     import tempfile
